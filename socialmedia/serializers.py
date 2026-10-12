@@ -196,3 +196,25 @@ class LikeSerializer(serializers.ModelSerializer):
         data["user"] = {"id": instance.user.id, "username": instance.user.username}
         data["post"] = {"id": instance.post.id, "title": instance.post.title}
         return data
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ["id", "user", "post", "created_at"]
+        validators = []
+ 
+    def validate(self, attrs):
+        if Favorite.objects.filter(user=attrs["user"], post=attrs["post"]).exists():
+            raise serializers.ValidationError("This post is already in the user's favorites.")
+        return attrs
+ 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["user"] = {"id": instance.user.id, "username": instance.user.username}
+        data["post"] = {
+            "id": instance.post.id,
+            "title": instance.post.title,
+            "author": instance.post.user.username,
+            "likes_count": instance.post.likes.count(),
+        }
+    

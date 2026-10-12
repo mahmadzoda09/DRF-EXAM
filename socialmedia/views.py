@@ -2,7 +2,9 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
-from django.db.models import Count , Max , Min , Avg , Q
+from django.db.models import Count , Max , Min , Avg , Q , F
+from django.utils import timezone
+from datetime import timedelta
 from .models import *
 from .serializers import *
 
@@ -205,4 +207,81 @@ def top_posts(request):
     posts = posts_qs().order_by("-likes_count")[:10]
     return Response(TopPostSerializer(posts, many=True).data)
  
+@api_view(["GET", "POST"])                                      # 21, 22
+def favorite_list(request):
+    if request.method == "GET":
+        favs = Favorite.objects.select_related("user", "post__user")
+        return Response(FavoriteSerializer(favs, many=True).data)
+    return create_object(FavoriteSerializer, request)
+ 
+ 
+@api_view(["DELETE"])                                           # 22
+def favorite_delete(request, pk):
+    get_object_or_404(Favorite, pk=pk).delete()
+    return Response(status=204)
+ 
+ 
+@api_view(["GET"])                                              # 23
+def user_favorites(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    posts = (Post.objects.filter(favorites__user=user)
+             .annotate(likes_count=Count("likes"))
+             .values("title", "likes_count", "views", post_id=F("id")))
+    return Response({
+        "user": user.username,
+        "favorites_count": len(posts),
+        "results": list(posts),
+    })
+ 
+ 
+@api_view(["GET"])
+def user_analytics(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    agg = user.posts.aggregate(total=Sum("views"), avg=Avg("views"))
+    last_7 = user.posts.filter(created_at__gte=timezone.now() - timedelta(days=7)).count()
+    return Response({
+        "user": short(user),
+        "posts": {
+            "posts_count": user.posts.count(),
+            "total_views": agg["total"] or 0,
+            "average_views": round(agg["avg"] or 0, 1),
+        },
+        "engagement": {
+            "likes_received": Like.objects.filter(post__user=user).count(),
+            "favorites_received": Favorite.objects.filter(post__user=user).count(),
+            "likes_given": user.likes.count(),
+            "favorites_given": user.favorites.count(),
+        },
+        "activity": {"posts_last_7_days": last_7, "is_active_user": last_7 > 0},
+    })
+ 
+ 
+@api_view(["GET"])                                              # 25
+def dashboard(request):
+    agg = Post.objects.aggregate(total=Sum("views"), avg=Avg("views"))
+    top_user = User.objects.annotate(posts_count=Count("posts")).order_by("-posts_count").first()
+    top_post = posts_qs().order_by("-likes_count").first()
+    latest = posts_qs().order_by("-created_at")[:5]
+ 
+    return Response({
+        "statistics": {
+            "users_count": User.objects.count(),
+            "profiles_count": Profile.objects.count(),
+            "posts_count": Post.objects.count(),
+            "likes_count": Like.objects.count(),
+            "favorites_count": Favorite.objects.count(),
+            "total_views": agg["total"] or 0,
+            "average_views": round(agg["avg"] or 0, 1),
+        },
+        "most_active_user": {
+            "id": top_user.id, "username": top_user.username, "posts_count": top_user.posts_count,
+        } if top_user else None,
+        "most_popular_post": {
+            "id": top_post.id, "title": top_post.title, "likes_count": top_post.likes_count,
+        } if top_post else None,
+        "latest_posts": [
+            {"id": p.id, "title": p.title, "author": p.user.username, "likes_count": p.likes_count}
+            for p in latest
+        ],
+    })
  
