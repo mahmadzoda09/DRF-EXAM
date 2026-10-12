@@ -9,4 +9,10 @@ urlpatterns = [
     path("profiles/", profile_list),
     path("profiles/city-statistics/", city_statistics),
     path("profiles/<int:pk>/", profile_detail),
+    path("posts/", post_list),
+    path("posts/popular/", popular_posts),
+    path("posts/search/", post_search),
+    path("posts/filter/", post_filter),
+    path("posts/statistics/", post_statistics),
+    path("posts/<int:pk>/", post_detail),
 ]
