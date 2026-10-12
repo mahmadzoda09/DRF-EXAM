@@ -37,3 +37,11 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "favorites_received": Favorite.objects.filter(post__user=obj).count(),
         }
  
+ 
+class MostActiveSerializer(serializers.ModelSerializer):
+    posts_count = serializers.IntegerField()
+ 
+    class Meta:
+        model = User
+        fields = ["id", "username", "posts_count"]
+ 
