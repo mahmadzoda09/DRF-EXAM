@@ -57,3 +57,28 @@ def user_statistics(request):
     )
     s["average_age"] = round(s["average_age"] or 0, 1)
     return Response(s)
+ 
+@api_view(["GET", "POST"])                                      
+def profile_list(request):
+    if request.method == "GET":
+        serializer = ProfileSerializer(Profile.objects.select_related("user").annotate(posts_count=Count("user__posts")), many=True)
+        return Response(serializer.data)
+    return create_object(ProfileSerializer, request)
+ 
+ 
+@api_view(["GET", "PUT", "PATCH", "DELETE"])                   
+def profile_detail(request, pk):
+    profile = Profile.objects.select_related("user").annotate(posts_count=Count("user__posts")).get(pk=pk).first()
+    if request.method == "GET":
+        return Response(ProfileSerializer(profile).data)
+    if request.method == "DELETE":
+        profile.delete()
+        return Response(status=204)
+    return update_object(ProfileSerializer, profile, request)
+ 
+ 
+@api_view(["GET"])                                            
+def city_statistics(request):
+    data = Profile.objects.values("city").annotate(users_count=Count("id")).order_by("-users_count")
+    return Response(list(data))
+ 

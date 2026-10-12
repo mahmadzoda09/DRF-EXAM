@@ -44,4 +44,19 @@ class MostActiveSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "posts_count"]
+
+def short(u):
+    return {"id": u.id, "username": u.username, "full_name": u.full_name}
  
+
+class ProfileSerializer(serializers.ModelSerializer):
+    posts_count = serializers.IntegerField(read_only=True, default=0)
+ 
+    class Meta:
+        model = Profile
+        fields = ["id", "user", "bio", "city", "birth_date", "avatar", "posts_count"]
+ 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["user"] = short(instance.user)
+        return data
