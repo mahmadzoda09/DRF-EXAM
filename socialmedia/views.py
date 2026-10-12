@@ -8,9 +8,15 @@ from .serializers import *
 
 def create_object(serializer_class, request):
     serializer = serializer_class(data=request.data)
-    serializer.is_valid(raise_exception=True)      # sends 400 automatically if invalid
+    serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data, status=201)
+
+def update_object(serializer_class, obj, request):
+    serializer = serializer_class(obj, data=request.data, partial=(request.method == "PATCH"))
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
 
 @api_view(["GET", "POST"])                                    
 def user_list(request):
@@ -20,5 +26,18 @@ def user_list(request):
             likes_count=Count("likes", distinct=True),
             favorites_count=Count("favorites", distinct=True),
         )
-        return Response(UserSerializer(users, many=True).data)
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
     return create_object(UserSerializer, request)
+
+
+@api_view(["GET", "PUT", "PATCH", "DELETE"])                   
+def user_detail(request, pk):
+    user = User.objects.get(pk=pk)
+    if request.method == "GET":
+        serializer = UserDetailSerializer(user)
+        return Response(serializer.data)
+    if request.method == "DELETE":
+        user.delete()
+        return Response(status=204)
+    return update_object(UserSerializer, user, request)  
