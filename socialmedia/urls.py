@@ -15,4 +15,8 @@ urlpatterns = [
     path("posts/filter/", post_filter),
     path("posts/statistics/", post_statistics),
     path("posts/<int:pk>/", post_detail),
+    path("posts/author-statistics/", author_statistics),
+    path("likes/", like_list),
+    path("likes/top-posts/", top_posts),
+    path("likes/<int:pk>/", like_delete),
 ]

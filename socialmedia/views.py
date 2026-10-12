@@ -151,11 +151,58 @@ def post_filter(request):
 @api_view(["GET"])                                              
 def post_statistics(request):
     post = Post.objects.aggregate(
-        total_posts=Count("id"), total_views=Sum("views"),
-        average_views=Avg("views"), max_views=Max("views"), min_views=Min("views"),
+        total_posts=Count("id"),  total_views=Sum("views"), average_views=Avg("views"),  max_views=Max("views"),  min_views=Min("views"),
     )
     post["total_views"] = post["total_views"] or 0
     post["average_views"] = round(post["average_views"] or 0, 1)
     post["total_likes"] = Like.objects.count()
     post["total_favorites"] = Favorite.objects.count()
     return Response(post)
+
+@api_view(["GET"])                                             
+def author_statistics(request):
+    users = User.objects.annotate(posts_count=Count("posts")).filter(posts_count__gt=0)
+    result = []
+    for u in users:
+        agg = u.posts.aggregate(total=Sum("views"), avg=Avg("views"))
+        result.append({
+            "user_id": u.id,
+            "username": u.username,
+            "posts_count": u.posts_count,
+            "total_views": agg["total"] or 0,
+            "average_views": round(agg["avg"] or 0, 1),
+            "likes_received": Like.objects.filter(post__user=u).count(),
+        })
+    return Response(result)
+
+@api_view(["GET", "POST"])                                      
+def like_list(request):
+    if request.method == "GET":
+        likes = Like.objects.select_related("user", "post")
+        return Response(LikeSerializer(likes, many=True).data)
+    return create_object(LikeSerializer, request)
+ 
+ 
+@api_view(["DELETE"])                                           
+def like_delete(request, pk):
+    Like.objects.get(pk=pk).delete()
+    return Response(status=204)
+ 
+ 
+@api_view(["GET"])                                              
+def post_likes(request, pk):
+    post = Post.objects.get(pk=pk)
+    likes = post.likes.select_related("user")
+    return Response({
+        "post_id": post.id,
+        "likes_count": likes.count(),
+        "users": [{"id": l.user.id, "username": l.user.username} for l in likes],
+    })
+ 
+ 
+@api_view(["GET"])                                              
+def top_posts(request):
+    posts = posts_qs().order_by("-likes_count")[:10]
+    return Response(TopPostSerializer(posts, many=True).data)
+ 
+ 

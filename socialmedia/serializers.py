@@ -180,4 +180,19 @@ class TopPostSerializer(serializers.ModelSerializer):
         model = Post
         fields = ["post_id", "title", "likes_count"]
  
+class LikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ["id", "user", "post", "created_at"]
+        validators = []
  
+    def validate(self, check):
+        if Like.objects.filter(user=check["user"], post=check["post"]).exists():
+            raise serializers.ValidationError("This user has already liked this post.")
+        return check
+ 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["user"] = {"id": instance.user.id, "username": instance.user.username}
+        data["post"] = {"id": instance.post.id, "title": instance.post.title}
+        return data
