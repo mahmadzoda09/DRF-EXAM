@@ -7,6 +7,10 @@ class User(models.Model):
     age = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+    
     def __str__(self):
         return self.username
 
@@ -19,3 +23,15 @@ class Profile(models.Model):
     
     def __str__(self):
         return self.user
+
+class Post(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    views = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.user
+
